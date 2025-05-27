@@ -68,6 +68,8 @@ class Equalify_Public {
 		add_shortcode( 'equalify_report', array( $this, 'equalify_report' ) );
 		add_shortcode( 'equalify_admin', array( $this, 'equalify_admin' ) );
 		add_shortcode( 'equalify_monitor', array( $this, 'equalify_monitor' ) );
+		add_shortcode( 'equalify_delete', array( $this, 'equalify_delete' ) );
+		add_shortcode( 'equalify_modify', array( $this, 'equalify_modify' ) );
 
 	}
 
@@ -144,6 +146,32 @@ class Equalify_Public {
 	public function equalify_monitor() {
 		ob_start();
 		include ( 'partials/monitor.php' );
+		$output = ob_get_contents();
+		ob_end_clean();
+		return $output;
+	}
+
+	/**
+	 * Renders the partial for delete monitor.
+	 *
+	 * @since    1.0.0
+	 */
+	public function equalify_delete() {
+		ob_start();
+		include ( 'partials/delete.php' );
+		$output = ob_get_contents();
+		ob_end_clean();
+		return $output;
+	}
+
+	/**
+	 * Renders the partial for modify monitor.
+	 *
+	 * @since    1.0.0
+	 */
+	public function equalify_modify() {
+		ob_start();
+		include ( 'partials/modify.php' );
 		$output = ob_get_contents();
 		ob_end_clean();
 		return $output;
