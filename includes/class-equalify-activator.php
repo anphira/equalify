@@ -87,6 +87,8 @@ class Equalify_Activator {
 			url_count SMALLINT UNSIGNED NOT NULL,
 			subscription_id BIGINT UNSIGNED NOT NULL,
 			xml_sitemap LONGTEXT NOT NULL,
+			email_report_to LONGTEXT NOT NULL,
+			email_summary_to LONGTEXT NOT NULL,
 			PRIMARY KEY  (id),
 			INDEX owner_index (owner_id),
 			INDEX property_index (property_id)
