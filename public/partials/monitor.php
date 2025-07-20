@@ -43,7 +43,7 @@ if(Equalify_Public::equalify_allowed_access() ) :
 			<table class="mt30 mb30">
 				<thead>
 					<tr>
-						<th>Monitor</th>
+						<th>Monitor Name</th>
 						<th>URLs</th>
 						<th>Date (YYYY-MM-DD)</th>
 						<th>Options</th>
@@ -64,9 +64,11 @@ if(Equalify_Public::equalify_allowed_access() ) :
 					    	}
 							echo '<tr scope="row">';
 								echo '<td>' . $monitor['property_name'] . '</td>';
-								echo '<td>' . $url_count . '<br><a href="' . Equalify_Public::equalify_get_url('equalify_edit_url') .'" class="button">Modify<span class="screen-reader-text"> ' . $monitor['property_name'] . '</span></a></td>';
+								echo '<td>' . $url_count . '</td>';
+								//echo '<td>' . $url_count . '<br><a href="' . Equalify_Public::equalify_get_url('equalify_edit_url') .'" class="button">Modify<span class="screen-reader-text"> ' . $monitor['property_name'] . '</span></a></td>';
 								echo '<td>Created: ' . date('Y-m-d', strtotime($monitor['date_created'])) . '<br>Scanned: ' . date('Y-m-d', strtotime($monitor['last_scan'])) . '</td>';
-								echo '<td><a href="' . Equalify_Public::equalify_get_url('equalify_reports_url') . '?id=' . $monitor['report_id'] . '">View Reports<span class="screen-reader-text"> for ' . $monitor['property_name'] . '</span></a><br><a href="' . $csv . '">Download Latest CSV<span class="screen-reader-text"> for ' . $monitor['property_name'] . '</span></a></td>';
+								//echo '<td><a href="' . Equalify_Public::equalify_get_url('equalify_reports_url') . '?id=' . $monitor['report_id'] . '">View Reports<span class="screen-reader-text"> for ' . $monitor['property_name'] . '</span></a><br><a href="' . $csv . '">Download Latest CSV<span class="screen-reader-text"> for ' . $monitor['property_name'] . '</span></a></td>';
+								echo '<td><a href="' . Equalify_Public::equalify_get_url('equalify_reports_url') . '?id=' . $monitor['report_id'] . '">View Reports<span class="screen-reader-text"> for ' . $monitor['property_name'] . '</span></a></td>';
 							echo '</tr>';
 						}
 					} ?>

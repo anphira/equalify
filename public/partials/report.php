@@ -25,14 +25,16 @@ if(Equalify_Public::equalify_allowed_access() ) :
 	// if the report id is valid
 	if($report_id) {
 		?>
-		<h2>Report for </h2>
-		<button>Export as CSV</button>
+		<h2>Name of monitor</h2>
+		<button>Download CSV</button>
 
-		<h2>Overview</h2>
+		<h2 class="mt50">Overview</h2>
+		<p>your top issue is x</p>
+		<p>x pages monitored</p>
 		<p>x warnings</p>
-		<p>x violations</p>
+		<p>x errors</p>
 		<p>x resolved </p>
-		<p>x% of automated tests passed</p>
+		<p>Last scan data: x</p>
 
 		<h2>Messages Table</h2>
 		<table>

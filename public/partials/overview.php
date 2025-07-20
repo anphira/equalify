@@ -223,7 +223,7 @@ if(Equalify_Public::equalify_allowed_overview_access() ) :
 		<table id="table-urls">
 			<thead>
 				<tr>
-					<th>Name</th>
+					<th>Monitor Name</th>
 					<th>XML Sitemap</th>
 					<th>Created</th>
 					<th>Updated</th>

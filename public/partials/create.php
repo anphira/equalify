@@ -17,57 +17,6 @@
 
 if(Equalify_Public::equalify_allowed_create_access() ) :
 
-	// Check for subscription URL parameter
-	$subscription_id = isset($_GET['subscription']) ? intval($_GET['subscription']) : 0;
-	
-	if ($subscription_id > 0) {
-		// Check if WooCommerce is active
-		if (class_exists('WooCommerce')) {
-			// Get the subscription
-			$subscription = wcs_get_subscription($subscription_id);
-			
-			if ($subscription && $subscription->has_status('active')) {
-				// Check if subscription contains equalify products
-				$allowed_url_count = 0;
-				
-				foreach ($subscription->get_items() as $item) {
-					$product_id = $item->get_product_id();
-					$product = wc_get_product($product_id);
-					
-					if ($product) {
-						$sku = $product->get_sku();
-						
-						// Check if this is an equalify subscription product
-						if (strpos($sku, 'equalify_subscription_id_') === 0) {
-							// Extract the URL count from corresponding equalify_url_count_ option
-							$subscription_number = str_replace('equalify_subscription_id_', '', $sku);
-							$url_count_option = 'equalify_url_count_' . $subscription_number;
-							$url_count = get_option($url_count_option, 0);
-							
-							if ($url_count > 0) {
-								$allowed_url_count = intval($url_count);
-								break;
-							}
-						}
-					}
-				}
-				
-				if ($allowed_url_count > 0) {
-					echo '<div class="notice notice-success"><p><strong>Your subscription is valid for ' . $allowed_url_count . ' URLs.</strong></p></div>';
-				} else {
-					echo '<div class="notice notice-error"><p><strong>Error:</strong> This subscription does not include any Equalify monitoring products.</p></div>';
-					return;
-				}
-			} else {
-				echo '<div class="notice notice-error"><p><strong>Error:</strong> The subscription is not valid or not active.</p></div>';
-				return;
-			}
-		} else {
-			echo '<div class="notice notice-error"><p><strong>Error:</strong> WooCommerce is not active.</p></div>';
-			return;
-		}
-	}
-
 	// if action is a POST
 	if ( $_SERVER['REQUEST_METHOD'] === 'POST' ) {
 
@@ -145,9 +94,6 @@ if(Equalify_Public::equalify_allowed_create_access() ) :
 
 		// Continue with existing validation logic
 		if (isset($validated) && $validated['success']) {
-
-		// if validated
-		if( $validated['success'] ) {
 
 			// Check URL count against subscription limit if subscription is provided
 			$url_limit = ($subscription_id > 0 && isset($allowed_url_count)) ? $allowed_url_count : Equalify_Public::equalify_allowed_url_count();
@@ -277,7 +223,6 @@ if(Equalify_Public::equalify_allowed_create_access() ) :
 				echo '<p>Your maximum allowed URL count is ' . $url_limit . '. Please submit URLs that are less than or equal to this count.</p>';
 				echo '<p>You submitted ' . $validated['url_count'] . ' URLs.</p>';
 			}
-		}
 
 		// invalid inputs, give error message
 		} else if (isset($validated)) {
@@ -286,16 +231,80 @@ if(Equalify_Public::equalify_allowed_create_access() ) :
 		}
 	}
 
-	// not a POST, just display form
-	else {
+	// not a POST, display form
+	else { 
+		// Check for subscription URL parameter
+		$subscription_id = isset($_GET['subscription']) ? intval($_GET['subscription']) : 0;
+		
+		if ($subscription_id > 0) {
+			// Check if WooCommerce is active
+			if (class_exists('WooCommerce')) {
+				// Get the subscription
+				$subscription = wcs_get_subscription($subscription_id);
+				
+				if ($subscription && $subscription->has_status('active')) {
+					// Check if subscription contains equalify products
+					$allowed_url_count = 0;
+					
+					foreach ($subscription->get_items() as $item) {
+						$product_id = $item->get_product_id();
+						$product = wc_get_product($product_id);
+						
+						if ($product) {
+							$sku = $product->get_sku();
+							
+							// Check if this is an equalify subscription product
+							if (strpos($sku, 'equalify_subscription_id_') === 0) {
+								// Extract the URL count from corresponding equalify_url_count_ option
+								$subscription_number = str_replace('equalify_subscription_id_', '', $sku);
+								$url_count_option = 'equalify_url_count_' . $subscription_number;
+								$url_count = get_option($url_count_option, 0);
+								
+								if ($url_count > 0) {
+									$allowed_url_count = intval($url_count);
+									break;
+								}
+							}
+						}
+					}
+					
+					if ($allowed_url_count > 0) {
+						echo '<div class="notice notice-success"><p><strong>Your subscription is valid for ' . $allowed_url_count . ' URLs.</strong></p></div>';
+					} else {
+						echo '<div class="notice notice-error"><p><strong>Error:</strong> This subscription is not for a monitor, please visit <a href="/monitor/">the Monitor page</a> to purchase or check your available monitors.</p></div>';
+						return;
+					}
+				} else {
+					echo '<div class="notice notice-error"><p><strong>Error:</strong> The subscription is not valid or not active.</p></div>';
+					return;
+				}
+			} else {
+				echo '<div class="notice notice-error"><p><strong>Error:</strong> WooCommerce is not active.</p></div>';
+				return;
+			}
+		}
+
+		// no subscription provided
+		else {
+			echo '<div class="notice notice-error"><p><strong>Error:</strong> You need an available subscription to create a monitor, please visit <a href="/monitor/">the Monitor page</a> to purchase or check your available monitors.</p></div>';
+			return;
+		}
 		?>
 	
+		<p class="large-text">Create your new monitor. There are 2 different email reports that get sent. One is a <strong>full report</strong> that details all of the issues and includes an attached CSV file. The second is a <strong>summary only</strong> that includes the primary issue and some overview information about the monitor.</p>
+		<p class="large-text">When entering URLs, you can enter URLs with GET parameters allowing you to poplate shopping carts with products. URLs can be on different domains, useful for tracking processes that happen across domains or subdomains.</p>
 		<form id="property_create_form" action="" method="post" enctype="application/x-www-form-urlencoded">
 			<div class="flexbox">
 				<div>
 					<p><strong><label for="property_name">Name for this monitor (required)</label></strong></p>
 					<p id="property_describe">Only letters, numbers, and spaces are allowed.</p>
 					<p><input type="text" id="property_name" name="property_name" aria-describeby="property_describe" required></p>
+
+					<p><strong><label for="full_report">Full report email address (required)</label></strong></p>
+					<p><input type="email" id="full_report" name="full_report" required></p>
+
+					<p><strong><label for="summary_only">Summary only email address (required)</label></strong></p>
+					<p><input type="email" id="summary_only" name="summary_only" required></p>
 				</div>
 				<div>
 					<p><strong><label for="urls_textarea">URLs for this monitor (required)</label></strong></p>
