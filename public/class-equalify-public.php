@@ -483,9 +483,9 @@ class Equalify_Public {
 	            ], get_option('equalify_create_url', ''));
 	            
 	            $content .= '<div class="subscription-item">';
-	            $content .= '<p><strong>' . esc_html($sub['product_name']) . '</strong></p>';
-	            $content .= '<p>Subscription ID: ' . esc_html($sub['subscription_id']) . ' | Product ID: ' . esc_html($sub['product_id']) . '</p>';
-	            $content .= '<a href="' . esc_url($create_url) . '" class="button">Use subscription ' . esc_html($sub['product_name']) . '</a>';
+	            //$content .= '<p><strong>' . esc_html($sub['product_name']) . '</strong></p>';
+	            //$content .= '<p>Subscription ID: ' . esc_html($sub['subscription_id']) . ' | Product ID: ' . esc_html($sub['product_id']) . '</p>';
+	            $content .= '<p><a href="' . esc_url($create_url) . '" class="button">Use subscription ' . esc_html($sub['product_name']) . '</a></p>';
 	            $content .= '</div>';
 	        }
 	        
@@ -500,6 +500,77 @@ class Equalify_Public {
 	    $content .= '</div>';
 	    
 	    return apply_filters('equalify_create_new_monitor', $content);
+	}
+
+	/**
+	 * Get URL count allowed for a specific product ID
+	 *
+	 * @param int $product_id WooCommerce product ID
+	 * @return int URL count allowed for this product
+	 * @since 1.0.0
+	 */
+	public static function equalify_get_url_count_for_product($product_id) {
+	    for ($i = 1; $i <= 10; $i++) {
+	        $stored_product_id = get_option("equalify_product_id_$i", 0);
+	        if ($stored_product_id == $product_id) {
+	            return get_option("equalify_url_count_$i", 0);
+	        }
+	    }
+	    return 0;
+	}
+
+	/**
+	 * Check if a subscription+product combination is available for creating a monitor
+	 *
+	 * @param int $subscription_id WooCommerce subscription ID
+	 * @param int $product_id WooCommerce product ID
+	 * @param int $user_id WordPress user ID
+	 * @return bool True if available, false if already used
+	 * @since 1.0.0
+	 */
+	public static function equalify_subscription_available($subscription_id, $product_id, $user_id) {
+	    global $wpdb;
+	    
+	    $table_name = $wpdb->prefix . 'equalify_monitors';
+	    $existing = $wpdb->get_var(
+	        $wpdb->prepare(
+	            "SELECT COUNT(*) FROM $table_name 
+	             WHERE subscription_id = %d 
+	             AND subscription_product_id = %d 
+	             AND owner_id = %d",
+	            $subscription_id,
+	            $product_id,
+	            $user_id
+	        )
+	    );
+	    
+	    return $existing == 0;
+	}
+
+	/**
+	 * Get monitor by subscription and product IDs
+	 *
+	 * @param int $subscription_id WooCommerce subscription ID
+	 * @param int $product_id WooCommerce product ID
+	 * @param int $user_id WordPress user ID
+	 * @return object|null Monitor object or null if not found
+	 * @since 1.0.0
+	 */
+	public static function equalify_get_monitor_by_subscription($subscription_id, $product_id, $user_id) {
+	    global $wpdb;
+	    
+	    $table_name = $wpdb->prefix . 'equalify_monitors';
+	    return $wpdb->get_row(
+	        $wpdb->prepare(
+	            "SELECT * FROM $table_name 
+	             WHERE subscription_id = %d 
+	             AND subscription_product_id = %d 
+	             AND owner_id = %d",
+	            $subscription_id,
+	            $product_id,
+	            $user_id
+	        )
+	    );
 	}
 
 	/**
