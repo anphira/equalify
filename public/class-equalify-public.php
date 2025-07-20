@@ -400,14 +400,106 @@ class Equalify_Public {
 
 
 	/**
-	 * Function for if the current user can create more properties.
-	 * By default this only website administrators.
+	 * Function for if the current user can create more monitors.
+	 * Shows available subscriptions and allows users to create monitors.
 	 * Override this filter in your child theme to customize.
 	 *
 	 * @since    1.0.0
 	 */
 	public static function equalify_create_new_monitor() {
-		return apply_filters('equalify_create_new_monitor', '<a href="/monitor/create/" class="button">Create new monitor</a>' );
+	    global $wpdb;
+	    
+	    $current_user_id = get_current_user_id();
+	    if (!$current_user_id) {
+	        return apply_filters('equalify_create_new_monitor', '<p>Please log in to view your monitors.</p>');
+	    }
+	    
+	    $content = '';
+	    
+	    // Check if WooCommerce Subscriptions is enabled
+	    $woocommerce_enabled = get_option('equalify_woocommerce_enabled', false);
+	    
+	    if (!$woocommerce_enabled || !function_exists('wcs_get_users_subscriptions')) {
+	        return apply_filters('equalify_create_new_monitor', '<a href="' . esc_url(get_option('equalify_create_url', '')) . '" class="button">Create new monitor</a>');
+	    }
+	    
+	    // Get user's subscriptions
+	    $user_subscriptions = wcs_get_users_subscriptions($current_user_id);
+	    $available_subscriptions = [];
+	    $used_subscriptions = [];
+	    
+	    // Get existing monitors to check which subscriptions are already used
+	    $table_name = $wpdb->prefix . 'equalify_monitors';
+	    $existing_monitors = $wpdb->get_results(
+	        $wpdb->prepare(
+	            "SELECT subscription_id, subscription_product_id FROM $table_name WHERE owner_id = %d",
+	            $current_user_id
+	        ),
+	        ARRAY_A
+	    );
+	    
+	    // Create array of used subscription+product combinations
+	    foreach ($existing_monitors as $monitor) {
+	        $used_subscriptions[] = $monitor['subscription_id'] . '_' . $monitor['subscription_product_id'];
+	    }
+	    
+	    // Process user subscriptions
+	    foreach ($user_subscriptions as $subscription) {
+	        $subscription_id = $subscription->get_id();
+	        $subscription_status = $subscription->get_status();
+	        
+	        // Only show active subscriptions
+	        if ($subscription_status !== 'active') {
+	            continue;
+	        }
+	        
+	        foreach ($subscription->get_items() as $item_id => $item) {
+	            $product_name = $item->get_name();
+	            $product_id = $item->get_product_id();
+	            $combo_key = $subscription_id . '_' . $product_id;
+	            
+	            // Check if this subscription+product combination is already used
+	            if (!in_array($combo_key, $used_subscriptions)) {
+	                $available_subscriptions[] = [
+	                    'subscription_id' => $subscription_id,
+	                    'product_id' => $product_id,
+	                    'product_name' => $product_name,
+	                    'combo_key' => $combo_key
+	                ];
+	            }
+	        }
+	    }
+	    
+	    // Generate content based on available subscriptions
+	    if (!empty($available_subscriptions)) {
+	        $content .= '<div class="equalify-available-subscriptions mb50">';
+	        $content .= '<h3>Available Subscriptions</h3>';
+	        $content .= '<p>You have unused subscriptions that can be used to create new monitors:</p>';
+	        
+	        foreach ($available_subscriptions as $sub) {
+	            $create_url = add_query_arg([
+	                'subscription_id' => $sub['subscription_id'],
+	                'product_id' => $sub['product_id']
+	            ], get_option('equalify_create_url', ''));
+	            
+	            $content .= '<div class="subscription-item">';
+	            $content .= '<p><strong>' . esc_html($sub['product_name']) . '</strong></p>';
+	            $content .= '<p>Subscription ID: ' . esc_html($sub['subscription_id']) . ' | Product ID: ' . esc_html($sub['product_id']) . '</p>';
+	            $content .= '<a href="' . esc_url($create_url) . '" class="button">Use subscription ' . esc_html($sub['product_name']) . '</a>';
+	            $content .= '</div>';
+	        }
+	        
+	        $content .= '</div>';
+	    }
+	    
+	    // Always show option to purchase new subscription
+	    $content .= '<div class="equalify-purchase-new">';
+	    $content .= '<h3>Need More Monitors?</h3>';
+	    $content .= '<p>Purchase a new subscription to create additional monitors:</p>';
+	    $content .= '<a href="' . esc_url(get_option('equalify_purchase_url', '')) . '" class="button button-primary">Purchase New Subscription</a>';
+	    $content .= '</div>';
+	    
+	    return apply_filters('equalify_create_new_monitor', $content);
 	}
 
 	/**

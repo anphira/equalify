@@ -106,7 +106,8 @@ class Equalify_Admin {
             'equalify_create_url',
             'equalify_reports_url',
             'equalify_delete_url',
-            'equalify_modify_url'
+            'equalify_modify_url',
+            'equalify_purchase_url'
         );
 
         foreach ($url_settings as $setting) {
@@ -187,7 +188,8 @@ class Equalify_Admin {
             'equalify_create_url' => 'Create Page URL',
             'equalify_reports_url' => 'Reports Page URL',
             'equalify_delete_url' => 'Delete Page URL',
-            'equalify_modify_url' => 'Modify Page URL'
+            'equalify_modify_url' => 'Modify Page URL',
+            'equalify_purchase_url' => 'Purchase Page URL'
         );
 
         foreach ($url_fields as $field => $label) {

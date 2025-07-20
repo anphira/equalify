@@ -92,7 +92,8 @@ class Equalify_Activator {
 			email_summary_to LONGTEXT NOT NULL,
 			PRIMARY KEY  (id),
 			INDEX owner_index (owner_id),
-			INDEX property_index (property_id)
+			INDEX property_index (property_id),
+    		INDEX subscription_index (subscription_id, subscription_product_id)
 		) $charset_collate;";
 		
 		// Execute the SQL query to create the table
