@@ -86,6 +86,7 @@ class Equalify_Activator {
 			property_name VARCHAR(100) NOT NULL,
 			url_count SMALLINT UNSIGNED NOT NULL,
 			subscription_id BIGINT UNSIGNED NOT NULL,
+			subscription_product_id BIGINT UNSIGNED NOT NULL,
 			xml_sitemap LONGTEXT NOT NULL,
 			email_report_to LONGTEXT NOT NULL,
 			email_summary_to LONGTEXT NOT NULL,

@@ -62,7 +62,7 @@ class Equalify_Public {
 	 */
 	public function register_shortcodes() {
 
-		add_shortcode( 'equalify_sitemap', array( $this, 'equalify_sitemap' ) );
+		add_shortcode( 'equalify_link', array( $this, 'equalify_link' ) );
 		add_shortcode( 'equalify_overview', array( $this, 'equalify_overview' ) );
 		add_shortcode( 'equalify_create', array( $this, 'equalify_create' ) );
 		add_shortcode( 'equalify_report', array( $this, 'equalify_report' ) );
@@ -74,13 +74,13 @@ class Equalify_Public {
 	}
 
 	/**
-	 * Renders the partial for sitemap.
+	 * Renders the partial for link.
 	 *
 	 * @since    1.0.0
 	 */
-	public function equalify_sitemap() {
+	public function equalify_link() {
 		ob_start();
-		include ( 'partials/sitemap.php' );
+		include ( 'partials/link.php' );
 		$output = ob_get_contents();
 		ob_end_clean();
 		return $output;
@@ -420,6 +420,18 @@ class Equalify_Public {
 	 */
 	public static function equalify_get_url($setting_name, $default = '') {
 	    return esc_url(get_option($setting_name, $default));
+	}
+
+	public static function update_monitor_sitemap($monitor_id, $urls) {
+	    // Update XML sitemap file and database
+	}
+
+	public static function find_subscription_plan($url_count, $direction) {
+	    // Find appropriate plan for upgrade/downgrade
+	}
+
+	public static function switch_subscription($subscription_id, $new_product_id) {
+	    // Handle WooCommerce subscription switching
 	}
 
 }

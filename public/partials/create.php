@@ -233,10 +233,11 @@ if(Equalify_Public::equalify_allowed_create_access() ) :
 
 	// not a POST, display form
 	else { 
-		// Check for subscription URL parameter
+		// Check for subscription & product URL parameters
 		$subscription_id = isset($_GET['subscription']) ? intval($_GET['subscription']) : 0;
+		$subscription_product_id = isset($_GET['product']) ? intval($_GET['product']) : 0;
 		
-		if ($subscription_id > 0) {
+		if ($subscription_id > 0 && $subscription_product_id > 0) {
 			// Check if WooCommerce is active
 			if (class_exists('WooCommerce')) {
 				// Get the subscription
@@ -292,7 +293,6 @@ if(Equalify_Public::equalify_allowed_create_access() ) :
 		?>
 	
 		<p class="large-text">Create your new monitor. There are 2 different email reports that get sent. One is a <strong>full report</strong> that details all of the issues and includes an attached CSV file. The second is a <strong>summary only</strong> that includes the primary issue and some overview information about the monitor.</p>
-		<p class="large-text">When entering URLs, you can enter URLs with GET parameters allowing you to poplate shopping carts with products. URLs can be on different domains, useful for tracking processes that happen across domains or subdomains.</p>
 		<form id="property_create_form" action="" method="post" enctype="application/x-www-form-urlencoded">
 			<div class="flexbox">
 				<div>
