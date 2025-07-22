@@ -1,7 +1,7 @@
 <?php
 
 /**
- * Provide a sitemap builder function for the plugin
+ * Provide monitor creation functionality with subscription line item support
  *
  * This file is used to markup the public-facing aspects of the plugin.
  *
@@ -17,10 +17,17 @@
 
 if(Equalify_Public::equalify_allowed_create_access() ) :
 
-	// if action is a POST
+    // if action is a POST
 	if ( $_SERVER['REQUEST_METHOD'] === 'POST' ) {
 
-		// Validate URLs from textarea
+		// Validate subscription context from form
+        $form_subscription_id = isset($_POST['subscription_id']) ? intval($_POST['subscription_id']) : 0;
+        $form_line_item_id = isset($_POST['line_item_id']) ? intval($_POST['line_item_id']) : 0;
+        $form_product_id = isset($_POST['product_id']) ? intval($_POST['product_id']) : 0;
+
+        $validated = Equalify_Public::validateSitemapMonitor($_POST);
+
+        // Validate URLs from textarea
 		$urls_input = isset($_POST['urls_textarea']) ? trim($_POST['urls_textarea']) : '';
 		
 		if (empty($urls_input)) {
@@ -233,67 +240,38 @@ if(Equalify_Public::equalify_allowed_create_access() ) :
 
 	// not a POST, display form
 	else { 
-		// Check for subscription & product URL parameters
-		$subscription_id = isset($_GET['subscription']) ? intval($_GET['subscription']) : 0;
-		$subscription_product_id = isset($_GET['product']) ? intval($_GET['product']) : 0;
-		
-		if ($subscription_id > 0 && $subscription_product_id > 0) {
-			// Check if WooCommerce is active
-			if (class_exists('WooCommerce')) {
-				// Get the subscription
-				$subscription = wcs_get_subscription($subscription_id);
-				
-				if ($subscription && $subscription->has_status('active')) {
-					// Check if subscription contains equalify products
-					$allowed_url_count = 0;
-					
-					foreach ($subscription->get_items() as $item) {
-						$product_id = $item->get_product_id();
-						$product = wc_get_product($product_id);
-						
-						if ($product) {
-							$sku = $product->get_sku();
-							
-							// Check if this is an equalify subscription product
-							if (strpos($sku, 'equalify_subscription_id_') === 0) {
-								// Extract the URL count from corresponding equalify_url_count_ option
-								$subscription_number = str_replace('equalify_subscription_id_', '', $sku);
-								$url_count_option = 'equalify_url_count_' . $subscription_number;
-								$url_count = get_option($url_count_option, 0);
-								
-								if ($url_count > 0) {
-									$allowed_url_count = intval($url_count);
-									break;
-								}
-							}
-						}
-					}
-					
-					if ($allowed_url_count > 0) {
-						echo '<div class="notice notice-success"><p><strong>Your subscription is valid for ' . $allowed_url_count . ' URLs.</strong></p></div>';
-					} else {
-						echo '<div class="notice notice-error"><p><strong>Error:</strong> This subscription is not for a monitor, please visit <a href="/monitor/">the Monitor page</a> to purchase or check your available monitors.</p></div>';
-						return;
-					}
-				} else {
-					echo '<div class="notice notice-error"><p><strong>Error:</strong> The subscription is not valid or not active.</p></div>';
-					return;
-				}
-			} else {
-				echo '<div class="notice notice-error"><p><strong>Error:</strong> WooCommerce is not active.</p></div>';
-				return;
-			}
-		}
 
+		// Get subscription context from URL parameters
+	    $subscription_id = isset($_GET['subscription_id']) ? intval($_GET['subscription_id']) : 0;
+	    $line_item_id = isset($_GET['line_item_id']) ? intval($_GET['line_item_id']) : 0;
+	    $product_id = isset($_GET['product_id']) ? intval($_GET['product_id']) : 0;
+		
+		// Validate subscription context if provided
+        if ($subscription_id && $line_item_id && $product_id) {
+			if (!Equalify_Public::validate_user_subscription_access($subscription_id, $line_item_id)) {
+                echo '<h2>Invalid Access</h2>';
+                echo '<p>You do not have access to this subscription.</p>';
+                echo '<p><a href="' . esc_url(Equalify_Public::equalify_get_url('equalify_monitor_url')) . '" class="button">Return to Monitors</a></p>';
+            }
 		// no subscription provided
 		else {
 			echo '<div class="notice notice-error"><p><strong>Error:</strong> You need an available subscription to create a monitor, please visit <a href="/monitor/">the Monitor page</a> to purchase or check your available monitors.</p></div>';
 			return;
 		}
+
+		// Get subscription details
+        $subscription = wcs_get_subscription($subscription_id);
+        $line_items = $subscription->get_items();
+        $line_item = $line_items[$line_item_id];
+        $url_limit = get_post_meta($product_id, '_equalify_url_count', true);
 		?>
 	
 		<p class="large-text">Create your new monitor. There are 2 different email reports that get sent. One is a <strong>full report</strong> that details all of the issues and includes an attached CSV file. The second is a <strong>summary only</strong> that includes the primary issue and some overview information about the monitor.</p>
 		<form id="property_create_form" action="" method="post" enctype="application/x-www-form-urlencoded">
+			<input type="hidden" name="subscription_id" value="<?php echo intval($subscription_id); ?>">
+            <input type="hidden" name="line_item_id" value="<?php echo intval($line_item_id); ?>">
+            <input type="hidden" name="product_id" value="<?php echo intval($product_id); ?>">
+            
 			<div class="flexbox">
 				<div>
 					<p><strong><label for="property_name">Name for this monitor (required)</label></strong></p>

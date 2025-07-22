@@ -87,13 +87,15 @@ class Equalify_Activator {
 			url_count SMALLINT UNSIGNED NOT NULL,
 			subscription_id BIGINT UNSIGNED NOT NULL,
 			subscription_product_id BIGINT UNSIGNED NOT NULL,
+			line_item_id BIGINT UNSIGNED NOT NULL DEFAULT 0,
 			xml_sitemap LONGTEXT NOT NULL,
 			email_report_to LONGTEXT NOT NULL,
 			email_summary_to LONGTEXT NOT NULL,
 			PRIMARY KEY  (id),
 			INDEX owner_index (owner_id),
 			INDEX property_index (property_id),
-    		INDEX subscription_index (subscription_id, subscription_product_id)
+    		INDEX subscription_index (subscription_id, subscription_product_id),
+			INDEX line_item_index (line_item_id)
 		) $charset_collate;";
 		
 		// Execute the SQL query to create the table

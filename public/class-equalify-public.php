@@ -407,100 +407,235 @@ class Equalify_Public {
 	 * @since    1.0.0
 	 */
 	public static function equalify_create_new_monitor() {
-	    global $wpdb;
 	    
 	    $current_user_id = get_current_user_id();
 	    if (!$current_user_id) {
 	        return apply_filters('equalify_create_new_monitor', '<p>Please log in to view your monitors.</p>');
 	    }
 	    
-	    $content = '';
-	    
-	    // Check if WooCommerce Subscriptions is enabled
-	    $woocommerce_enabled = get_option('equalify_woocommerce_enabled', false);
-	    
-	    if (!$woocommerce_enabled || !function_exists('wcs_get_users_subscriptions')) {
+	    if (!class_exists('WC_Subscriptions')) {
 	        return apply_filters('equalify_create_new_monitor', '<a href="' . esc_url(get_option('equalify_create_url', '')) . '" class="button">Create new monitor</a>');
 	    }
+    
+   		$unused_monitors = self::equalify_get_unused_monitors();
+	    $output = '';
 	    
-	    // Get user's subscriptions
-	    $user_subscriptions = wcs_get_users_subscriptions($current_user_id);
-	    $available_subscriptions = [];
-	    $used_subscriptions = [];
-	    
-	    // Get existing monitors to check which subscriptions are already used
-	    $table_name = $wpdb->prefix . 'equalify_monitors';
-	    $existing_monitors = $wpdb->get_results(
-	        $wpdb->prepare(
-	            "SELECT subscription_id, subscription_product_id FROM $table_name WHERE owner_id = %d",
-	            $current_user_id
-	        ),
-	        ARRAY_A
-	    );
-	    
-	    // Create array of used subscription+product combinations
-	    foreach ($existing_monitors as $monitor) {
-	        $used_subscriptions[] = $monitor['subscription_id'] . '_' . $monitor['subscription_product_id'];
+	    if (!empty($unused_monitors)) {
+	        $output .= '<div class="unused-monitors">';
+	        $output .= '<h3>Available Unused Monitors</h3>';
+	        $output .= '<p>You have the following unused monitors available from your subscriptions:</p>';
+	        
+	        foreach ($unused_monitors as $monitor) {
+	            $create_url = self::equalify_get_url('equalify_create_url') . 
+	                         '?subscription_id=' . $monitor['subscription_id'] . 
+	                         '&line_item_id=' . $monitor['line_item_id'] . 
+	                         '&product_id=' . $monitor['product_id'];
+	            
+	            $output .= '<div class="unused-monitor-item">';
+	            $output .= '<p>';
+	            $output .= '<a href="' . esc_url($create_url) . '" class="button">Create ' . esc_html($monitor['product_name']) . '</a></p>';
+	            $output .= '</div>';
+	        }
+	        
+	        $output .= '</div>';
 	    }
 	    
-	    // Process user subscriptions
-	    foreach ($user_subscriptions as $subscription) {
-	        $subscription_id = $subscription->get_id();
-	        $subscription_status = $subscription->get_status();
-	        
-	        // Only show active subscriptions
-	        if ($subscription_status !== 'active') {
+	    // Always show option to purchase new subscription
+	    $purchase_url = self::equalify_get_url('equalify_purchase_url', '/shop/');
+	    $output .= '<p><a href="' . esc_url($purchase_url) . '" class="button button-primary">Purchase New Monitor</a></p>';
+	    
+	    return apply_filters('equalify_create_new_monitor', $output);
+	}
+
+	/**
+	 * Get monitor details including subscription and line item information.
+	 *
+	 * @since    1.0.0
+	 */
+	public static function equalify_get_monitor_details($monitor_id) {
+	    global $wpdb;
+	    
+	    $table_name = $wpdb->prefix . 'equalify_monitors';
+	    $monitor = $wpdb->get_row($wpdb->prepare(
+	        "SELECT * FROM $table_name WHERE id = %d AND owner_id = %d",
+	        $monitor_id,
+	        get_current_user_id()
+	    ), ARRAY_A);
+	    
+	    if (!$monitor) {
+	        return false;
+	    }
+	    
+	    // Add subscription details if WooCommerce is active
+	    if (class_exists('WC_Subscriptions') && $monitor['subscription_id']) {
+	        $subscription = wcs_get_subscription($monitor['subscription_id']);
+	        if ($subscription) {
+	            $line_items = $subscription->get_items();
+	            if (isset($line_items[$monitor['line_item_id']])) {
+	                $line_item = $line_items[$monitor['line_item_id']];
+	                $monitor['subscription_status'] = $subscription->get_status();
+	                $monitor['product_name'] = $line_item->get_name();
+	                $monitor['line_item_quantity'] = $line_item->get_quantity();
+	            }
+	        }
+	    }
+	    
+	    return $monitor;
+	}
+
+	/**
+	 * Validate that the current user has access to the subscription and line item.
+	 *
+	 * @since    1.0.0
+	 */
+	private static function validate_user_subscription_access($subscription_id, $line_item_id) {
+	    if (!class_exists('WC_Subscriptions')) {
+	        return false;
+	    }
+	    
+	    $subscription = wcs_get_subscription($subscription_id);
+	    
+	    if (!$subscription || $subscription->get_user_id() !== get_current_user_id()) {
+	        return false;
+	    }
+	    
+	    // Check if line item exists in this subscription
+	    $line_items = $subscription->get_items();
+	    return isset($line_items[$line_item_id]);
+	}
+
+	/**
+	 * Function to create a monitor with subscription and line item context.
+	 *
+	 * @since    1.0.0
+	 */
+	public static function equalify_create_monitor_from_subscription($subscription_id, $line_item_id, $product_id, $property_name, $sitemap_url, $url_count) {
+	    global $wpdb;
+	    
+	    // Validate that the subscription and line item belong to current user
+	    if (!self::validate_user_subscription_access($subscription_id, $line_item_id)) {
+	        return [
+	            'success' => false,
+	            'message' => 'Invalid subscription or line item access.'
+	        ];
+	    }
+	    
+	    // Check if this line item is already used
+	    $table_name = $wpdb->prefix . 'equalify_monitors';
+	    $existing = $wpdb->get_var($wpdb->prepare(
+	        "SELECT id FROM $table_name WHERE subscription_id = %d AND line_item_id = %d",
+	        $subscription_id,
+	        $line_item_id
+	    ));
+	    
+	    if ($existing) {
+	        return [
+	            'success' => false,
+	            'message' => 'This subscription line item is already in use.'
+	        ];
+	    }
+	    
+	    // Create the monitor with line item information
+	    $monitor_data = [
+	        'owner_id' => get_current_user_id(),
+	        'group_id' => get_current_user_id(),
+	        'last_scan' => current_time('mysql'),
+	        'date_created' => current_time('mysql'),
+	        'report_id' => '', // Will be filled when first report is created
+	        'property_id' => '', // Will be filled when property is created in Equalify API
+	        'property_name' => $property_name,
+	        'url_count' => $url_count,
+	        'subscription_id' => $subscription_id,
+	        'subscription_product_id' => $product_id,
+	        'line_item_id' => $line_item_id,
+	        'xml_sitemap' => $sitemap_url,
+	        'email_report_to' => '', // Empty by default, can be updated later
+	        'email_summary_to' => '' // Empty by default, can be updated later
+	    ];
+	    
+	    $result = $wpdb->insert($table_name, $monitor_data);
+	    
+	    if ($result === false) {
+	        return [
+	            'success' => false,
+	            'message' => 'Failed to create monitor in database.'
+	        ];
+	    }
+	    
+	    return [
+	        'success' => true,
+	        'monitor_id' => $wpdb->insert_id,
+	        'message' => 'Monitor created successfully.'
+	    ];
+	}
+
+	/**
+	 * Function to get available unused monitors for the current user.
+	 * Returns monitors from WooCommerce subscriptions that haven't been assigned yet.
+	 *
+	 * @since    1.0.0
+	 */
+	public static function equalify_get_unused_monitors() {
+	    if (!class_exists('WC_Subscriptions')) {
+	        return [];
+	    }
+	    
+	    global $wpdb;
+	    $current_user_id = get_current_user_id();
+	    $unused_monitors = [];
+	    
+	    // Get all existing monitors for this user in a single query
+	    $table_name = $wpdb->prefix . 'equalify_monitors';
+	    $existing_monitors = $wpdb->get_results($wpdb->prepare(
+	        "SELECT subscription_id, line_item_id FROM $table_name WHERE owner_id = %d",
+	        $current_user_id
+	    ), ARRAY_A);
+	    
+	    // Create lookup array for existing monitors
+	    $existing_lookup = [];
+	    foreach ($existing_monitors as $monitor) {
+	        $key = $monitor['subscription_id'] . '_' . $monitor['line_item_id'];
+	        $existing_lookup[$key] = true;
+	    }
+	    
+	    // Get active subscriptions for current user
+	    $subscriptions = wcs_get_users_subscriptions($current_user_id);
+	    
+	    foreach ($subscriptions as $subscription) {
+	        if ($subscription->get_status() !== 'active') {
 	            continue;
 	        }
 	        
-	        foreach ($subscription->get_items() as $item_id => $item) {
-	            $product_name = $item->get_name();
-	            $product_id = $item->get_product_id();
-	            $combo_key = $subscription_id . '_' . $product_id;
+	        // Get line items from subscription
+	        $line_items = $subscription->get_items();
+	        
+	        foreach ($line_items as $line_item_id => $line_item) {
+	            $product_id = $line_item->get_product_id();
+	            $subscription_id = $subscription->get_id();
+	            $quantity = $line_item->get_quantity();
 	            
-	            // Check if this subscription+product combination is already used
-	            if (!in_array($combo_key, $used_subscriptions)) {
-	                $available_subscriptions[] = [
+	            // Check if this line item is already assigned using lookup array
+	            $lookup_key = $subscription_id . '_' . $line_item_id;
+	            
+	            if (!isset($existing_lookup[$lookup_key])) {
+	                // Get URL count for this product
+	                $url_count = get_post_meta($product_id, '_equalify_url_count', true);
+	                
+	                $unused_monitors[] = [
 	                    'subscription_id' => $subscription_id,
+	                    'line_item_id' => $line_item_id,
 	                    'product_id' => $product_id,
-	                    'product_name' => $product_name,
-	                    'combo_key' => $combo_key
+	                    'product_name' => $line_item->get_name(),
+	                    'url_count' => $url_count ?: 0,
+	                    'quantity' => $quantity
 	                ];
 	            }
 	        }
 	    }
 	    
-	    // Generate content based on available subscriptions
-	    if (!empty($available_subscriptions)) {
-	        $content .= '<div class="equalify-available-subscriptions mb50">';
-	        $content .= '<h3>Available Subscriptions</h3>';
-	        $content .= '<p>You have unused subscriptions that can be used to create new monitors:</p>';
-	        
-	        foreach ($available_subscriptions as $sub) {
-	            $create_url = add_query_arg([
-	                'subscription_id' => $sub['subscription_id'],
-	                'product_id' => $sub['product_id']
-	            ], get_option('equalify_create_url', ''));
-	            
-	            $content .= '<div class="subscription-item">';
-	            //$content .= '<p><strong>' . esc_html($sub['product_name']) . '</strong></p>';
-	            //$content .= '<p>Subscription ID: ' . esc_html($sub['subscription_id']) . ' | Product ID: ' . esc_html($sub['product_id']) . '</p>';
-	            $content .= '<p><a href="' . esc_url($create_url) . '" class="button">Use subscription ' . esc_html($sub['product_name']) . '</a></p>';
-	            $content .= '</div>';
-	        }
-	        
-	        $content .= '</div>';
-	    }
-	    
-	    // Always show option to purchase new subscription
-	    $content .= '<div class="equalify-purchase-new">';
-	    $content .= '<h3>Need More Monitors?</h3>';
-	    $content .= '<p>Purchase a new subscription to create additional monitors:</p>';
-	    $content .= '<a href="' . esc_url(get_option('equalify_purchase_url', '')) . '" class="button button-primary">Purchase New Subscription</a>';
-	    $content .= '</div>';
-	    
-	    return apply_filters('equalify_create_new_monitor', $content);
+	    return $unused_monitors;
 	}
+
 
 	/**
 	 * Get URL count allowed for a specific product ID
