@@ -407,6 +407,7 @@ class Equalify_Public {
 	 * @since    1.0.0
 	 */
 	public static function equalify_create_new_monitor() {
+    	global $wpdb;
 	    
 	    $current_user_id = get_current_user_id();
 	    if (!$current_user_id) {
@@ -417,32 +418,97 @@ class Equalify_Public {
 	        return apply_filters('equalify_create_new_monitor', '<a href="' . esc_url(get_option('equalify_create_url', '')) . '" class="button">Create new monitor</a>');
 	    }
     
-   		$unused_monitors = self::equalify_get_unused_monitors();
-	    $output = '';
+   		// Get user's active subscriptions
+	    $subscriptions = wcs_get_users_subscriptions($user_id);
+	    $subscription_items = array();
+	    $subscription_ids = array();
 	    
-	    if (!empty($unused_monitors)) {
-	        $output .= '<div class="unused-monitors">';
-	        $output .= '<h3>Available Unused Monitors</h3>';
-	        $output .= '<p>You have the following unused monitors available from your subscriptions:</p>';
-	        
-	        foreach ($unused_monitors as $monitor) {
-	            $create_url = self::equalify_get_url('equalify_create_url') . 
-	                         '?subscription_id=' . $monitor['subscription_id'] . 
-	                         '&line_item_id=' . $monitor['line_item_id'] . 
-	                         '&product_id=' . $monitor['product_id'];
-	            
-	            $output .= '<div class="unused-monitor-item">';
-	            $output .= '<p>';
-	            $output .= '<a href="' . esc_url($create_url) . '" class="button">Create ' . esc_html($monitor['product_name']) . '</a></p>';
-	            $output .= '</div>';
+	    // First pass: collect all subscription data
+	    foreach ($subscriptions as $subscription) {
+	        if ($subscription->get_status() !== 'active') {
+	            continue;
 	        }
 	        
-	        $output .= '</div>';
+	        $subscription_id = $subscription->get_id();
+	        $subscription_ids[] = $subscription_id;
+	        
+	        foreach ($subscription->get_items() as $item_id => $item) {
+	            $product_id = $item->get_product_id();
+	            $quantity = $item->get_quantity();
+	            
+	            $subscription_items[] = array(
+	                'subscription_id' => $subscription_id,
+            		'line_item_id' => $item_id,
+	                'product_id' => $product_id,
+	                'quantity' => $quantity
+	            );
+	        }
 	    }
 	    
-	    // Always show option to purchase new subscription
-	    $purchase_url = self::equalify_get_url('equalify_purchase_url', '/shop/');
-	    $output .= '<p><a href="' . esc_url($purchase_url) . '" class="button button-primary">Purchase New Monitor</a></p>';
+	    if (empty($subscription_ids)) {
+	        return apply_filters('equalify_create_new_monitor', '<p>No active subscriptions found.</p>');
+	    }
+	    
+	    // Single database query to get all existing monitors for user's subscriptions
+	    $table_name = $wpdb->prefix . 'equalify_monitors';
+	    $subscription_ids_placeholder = implode(',', array_fill(0, count($subscription_ids), '%d'));
+	    $existing_monitors_data = $wpdb->get_results($wpdb->prepare(
+	        "SELECT subscription_id, subscription_product_id, COUNT(*) as monitor_count 
+	         FROM $table_name 
+	         WHERE subscription_id IN ($subscription_ids_placeholder) 
+	         GROUP BY subscription_id, subscription_product_id",
+	        ...$subscription_ids
+	    ), ARRAY_A);
+	    
+	    // Index existing monitors by subscription_id and product_id for quick lookup
+	    $existing_counts = array();
+	    foreach ($existing_monitors_data as $row) {
+	        $key = $row['subscription_id'] . '_' . $row['subscription_product_id'];
+	        $existing_counts[$key] = intval($row['monitor_count']);
+	    }
+	    
+	    // Calculate unused monitors
+	    $unused_monitors = array();
+	    foreach ($subscription_items as $item) {
+	    	
+	        $key = $item['subscription_id'] . '_' . $item['product_id'];
+	        $existing_count = isset($existing_counts[$key]) ? $existing_counts[$key] : 0;
+	        $unused_count = $item['quantity'] - $existing_count;
+	        
+	        if ($unused_count > 0) {
+	            $product = wc_get_product($item['product_id']);
+	            $product_name = $product ? $product->get_name() : 'Unknown Product';
+	            
+	            for ($i = 1; $i <= $unused_count; $i++) {
+	                $unused_monitors[] = array(
+	                    'subscription_id' => $item['subscription_id'],
+        				'line_item_id' => $item['line_item_id'],
+	                    'product_id' => $item['product_id'],
+	                    'product_name' => $product_name,
+	                    'slot_number' => $existing_count + $i
+	                );
+	            }
+	        }
+	    }
+	    
+	    if (empty($unused_monitors)) {
+	        $output = '<p>You have no unused monitor slots available.</p>';
+	        $output .= '<p><a href="' . esc_url(get_option('equalify_purchase_url', '')) . '" class="button">Purchase Additional Monitors</a></p>';
+	        return apply_filters('equalify_create_new_monitor', $output);
+	    }
+	    
+	    $output = '<h3>Available Monitor Slots (' . count($unused_monitors) . ')</h3>';
+	    foreach ($unused_monitors as $monitor) {
+	        $create_url = add_query_arg(array(
+	            'subscription_id' => $monitor['subscription_id'],
+        		'line_item_id' => $monitor['line_item_id'],
+	            'product_id' => $monitor['product_id']
+	        ), get_option('equalify_create_url', ''));
+	        
+	        $output .= '<p><a href="' . esc_url($create_url) . '" class="button">Create ' . esc_html($monitor['product_name']) . '</a></p>';
+	    }
+	    
+	    $output .= '<p class="mt40 mb40"><a href="' . esc_url(get_option('equalify_purchase_url', '')) . '" class="button button-secondary">Purchase Additional Monitors</a></p>';
 	    
 	    return apply_filters('equalify_create_new_monitor', $output);
 	}

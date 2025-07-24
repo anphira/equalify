@@ -241,6 +241,8 @@ if(Equalify_Public::equalify_allowed_create_access() ) :
 	// not a POST, display form
 	else { 
 
+		echo '<p>If you have an issue with this page, please email info@easya11yguide.com for help.</p>';
+
 		// Get subscription context from URL parameters
 	    $subscription_id = isset($_GET['subscription_id']) ? intval($_GET['subscription_id']) : 0;
 	    $line_item_id = isset($_GET['line_item_id']) ? intval($_GET['line_item_id']) : 0;
@@ -253,6 +255,7 @@ if(Equalify_Public::equalify_allowed_create_access() ) :
                 echo '<p>You do not have access to this subscription.</p>';
                 echo '<p><a href="' . esc_url(Equalify_Public::equalify_get_url('equalify_monitor_url')) . '" class="button">Return to Monitors</a></p>';
             }
+        }
 		// no subscription provided
 		else {
 			echo '<div class="notice notice-error"><p><strong>Error:</strong> You need an available subscription to create a monitor, please visit <a href="/monitor/">the Monitor page</a> to purchase or check your available monitors.</p></div>';
@@ -266,7 +269,8 @@ if(Equalify_Public::equalify_allowed_create_access() ) :
         $url_limit = get_post_meta($product_id, '_equalify_url_count', true);
 		?>
 	
-		<p class="large-text">Create your new monitor. There are 2 different email reports that get sent. One is a <strong>full report</strong> that details all of the issues and includes an attached CSV file. The second is a <strong>summary only</strong> that includes the primary issue and some overview information about the monitor.</p>
+		<p>Create your new monitor. You have X URLs available for this monitor.</p>
+		<p>There are 2 different email reports that get sent. One is a <strong>full report</strong> that details all of the issues and includes an attached CSV file. The second is a <strong>summary only</strong> that includes the primary issue and some overview information about the monitor.</p>
 		<form id="property_create_form" action="" method="post" enctype="application/x-www-form-urlencoded">
 			<input type="hidden" name="subscription_id" value="<?php echo intval($subscription_id); ?>">
             <input type="hidden" name="line_item_id" value="<?php echo intval($line_item_id); ?>">
@@ -350,6 +354,6 @@ if(Equalify_Public::equalify_allowed_create_access() ) :
 	<?php
 	}
 
-else :
+else:
 	echo Equalify_Public::equalify_denied();
 endif;
