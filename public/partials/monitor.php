@@ -34,11 +34,8 @@ if(Equalify_Public::equalify_allowed_access() ) :
         get_current_user_id()
     ), ARRAY_A);
     
-    $table_name = $wpdb->prefix . 'equalify_reports';
-    $reports_data = $wpdb->get_results("SELECT report_id, url_count, equalify_csv FROM $table_name", ARRAY_A);
-    
     // Check if query was successful
-    if ($monitors_data === null || $reports_data === null) {
+    if ($monitors_data === null) {
         echo '<p>Error retrieving monitor data.</p>';
     } elseif (!empty($monitors_data)) {
         ?>
@@ -55,17 +52,7 @@ if(Equalify_Public::equalify_allowed_access() ) :
             <tbody>
                 <?php
                 foreach ($monitors_data as $monitor) {
-                    $url_count = '';
-                    $csv = '';
-                    
-                    // Find matching report data
-                    foreach ($reports_data as $report) {
-                        if($report['report_id'] == $monitor['report_id']) {
-                            $csv = $report['equalify_csv'];
-                            $url_count = $report['url_count'];
-                            break;
-                        }
-                    }
+                    $url_count = $monitor['url_count'];
                     
                     // Get subscription information
                     $subscription_info = '';
@@ -110,7 +97,7 @@ if(Equalify_Public::equalify_allowed_access() ) :
         </table>
     <?php 
     } else {
-        echo '<p>You have no monitors currently. Use the options above to create your first monitor.</p>';
+        echo '<p class="mb50">You have no monitors currently. Use the options above to create your first monitor.</p>';
     }
     ?>
 

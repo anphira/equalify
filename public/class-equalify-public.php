@@ -315,18 +315,16 @@ class Equalify_Public {
 		return apply_filters('equalify_get_group_id', get_current_user_id() );
 	}
 
+	public static function validate_property_name($property_name) {
+	    // Validate property name
+	    if (!preg_match('/^[a-zA-Z0-9 ]+$/', $property_name)) {
+	        return false;
+	    }
+	    return true;
+	}
+
 	// Validate form submission and input
 	public static function validateSitemapMonitor($post_item) {
-
-	    // Validate property name
-	    $property_name = $post_item['property_name'] ?? '';
-	    if (!preg_match('/^[a-zA-Z0-9 ]+$/', $property_name)) {
-	    	echo $property_name;
-	        return [
-	            'success' => false,
-	            'message' => 'Property name must contain only alphanumeric characters and spaces.'
-	        ];
-	    }
 
 	    // Validate sitemap URL
 	    $sitemap_url = $post_item['property_sitemap'] ?? '';
